@@ -24,4 +24,5 @@ futures.workspace = true
 socket2.workspace = true
 prometheus.workspace = true
 postcard.workspace = true
+rust-embed = "8"
 

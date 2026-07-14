@@ -33,6 +33,7 @@ use config::PluginConfig;
 mod api;
 mod clients;
 mod config;
+mod embed;
 mod handler;
 mod plugin;
 mod prome;

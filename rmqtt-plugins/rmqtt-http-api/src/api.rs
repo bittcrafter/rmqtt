@@ -40,13 +40,14 @@ use rmqtt::{
     Result,
 };
 
-use salvo::serve_static::StaticDir;
+use salvo::serve_static::{static_embed, StaticDir};
 
 use super::prome::{Monitor, PROME_MONITOR};
 use super::types::{
     ClientSearchParams, ClientSearchResult, Message, MessageReply, PrometheusDataType, PublishParams,
     SubscribeParams, UnsubscribeParams,
 };
+use super::embed::DashboardAssets;
 use super::{clients, plugin, prome, subs, PluginConfigType};
 
 struct BearerValidator {
@@ -184,20 +185,46 @@ pub(crate) async fn listen_and_serve(
 
     let mut root_router = Router::new().push(api_router);
 
-    // Mount Dashboard SPA static files if configured
-    if let Some(dir) = &dashboard_static_dir {
+    // Mount Dashboard SPA — prefer filesystem directory (dev hot-reload) over embedded assets.
+    // If dashboard_static_dir is configured AND the directory exists, use StaticDir
+    // (supports live editing of dashboard files during development).
+    // Otherwise, fall back to assets embedded via rust-embed (production mode, no config needed).
+    let dashboard_mounted = if let Some(dir) = &dashboard_static_dir {
         let path = std::path::Path::new(dir);
         if path.exists() {
             root_router = root_router.push(
                 Router::with_path("dashboard/{**path}").get(StaticDir::new([dir]).defaults("index.html")),
             );
+            root_router = root_router.push(
+                Router::with_path("{**path}").get(StaticDir::new([dir]).defaults("index.html")),
+            );
             log::info!(
-                "Dashboard SPA mounted at /dashboard/, serving from: {dir}, canonical: {:?}",
+                "Dashboard SPA mounted from filesystem: {dir}, canonical: {:?}",
                 path.canonicalize()
             );
+            true
         } else {
-            log::warn!("Dashboard static dir not found: {dir}, skipping dashboard mount");
+            log::warn!(
+                "Dashboard static dir configured but not found: {dir}, falling back to embedded assets"
+            );
+            false
         }
+    } else {
+        false
+    };
+
+    if !dashboard_mounted {
+        root_router = root_router.push(
+            Router::with_path("dashboard/{*path}").get(
+                static_embed::<DashboardAssets>().fallback("index.html"),
+            ),
+        );
+        root_router = root_router.push(
+            Router::with_path("{*path}").get(
+                static_embed::<DashboardAssets>().fallback("index.html"),
+            ),
+        );
+        log::info!("Dashboard SPA mounted from embedded assets (rust-embed)");
     }
 
     server.try_serve(root_router).await?;
