@@ -1,0 +1,108 @@
+{
+  "app": {"title": "Dashboard RMQTT", "loading": "Caricamento..."},
+  "nav": {
+    "overview": "Panoramica cluster", "clients": "Client", "subscriptions": "Sottoscrizioni",
+    "publish": "Pubblica", "plugins": "Plugin", "language": "Lingua",
+    "toggle_sidebar": "Mostra/Nascondi barra laterale", "search_placeholder": "Cerca ClientID...",
+    "group_monitoring": "Monitoraggio", "retained": "Messaggi mantenuti",
+    "delayed_publish": "Pubblicazione ritardata", "alarms": "Allarmi",
+    "group_access_control": "Controllo accessi", "auth": "Autenticazione",
+    "acl": "Autorizzazione", "blacklist": "Lista nera", "flapping": "Rilevamento flapping",
+    "group_integration": "Integrazione", "webhooks": "Webhooks", "connectors": "Connettori",
+    "group_management": "Gestione", "group_cluster_config": "Configurazione cluster",
+    "mqtt_config": "Configurazione MQTT", "cluster": "Cluster", "listeners": "Listener",
+    "logs": "Registri", "monitoring": "Monitoraggio", "group_mqtt_advanced": "MQTT avanzato",
+    "topic_rewrite": "Riscrittura argomento", "auto_subscribe": "Sottoscrizione automatica",
+    "group_plugin_ext": "Estensioni", "hooks": "Hooks",
+    "group_diagnostics": "Diagnostica", "ws_client": "Client WebSocket",
+    "topics": "Monitor argomenti", "slow_sub": "Sottoscrizione lenta", "trace": "Traccia log",
+    "drop_analysis": "Analisi scarti", "group_system": "Sistema", "users": "Utenti",
+    "audit_log": "Registro audit", "api_keys": "Chiavi API"
+  },
+  "login": {
+    "title": "Accesso", "token_placeholder": "Inserisci Token",
+    "subtitle": "Inserisci il Bearer Token per accedere", "submit": "Accedi",
+    "verifying": "Verifica in corso...", "error_empty": "Il Token non può essere vuoto",
+    "error_invalid": "Token non valido o servizio non disponibile"
+  },
+  "overview": {
+    "title": "Panoramica cluster", "nodes_title": "Nodi", "metrics_title": "Metriche",
+    "total_sessions": "Sessioni totali", "online_sessions": "Sessioni online",
+    "topics_count": "Argomenti", "retained_count": "Messaggi mantenuti",
+    "nodes_count": "nodi", "node_info": "Informazioni nodo", "view_node_list": "Vedi elenco nodi",
+    "node_name": "Nome nodo", "node_role": "Ruolo", "node_uptime": "Uptime",
+    "node_version": "Versione", "max_fds": "FD max", "cpu_load": "Carico CPU",
+    "node_memory": "Memoria", "time_range": "Intervallo",
+    "node_distribution": "Distribuzione connessioni", "total": "Totale",
+    "node_id": "ID nodo", "node_name_th": "Nome", "status": "Stato",
+    "connections_count": "Connessioni", "msg_per_sec": "Msg/s", "cpu": "CPU",
+    "memory": "Memoria", "uptime": "Uptime", "online": "● Online", "offline": "○ Offline",
+    "clients_connected": "Connessioni", "clients_sub": "Connessioni attive",
+    "msg_rate": "Messaggi/s", "msg_rate_sub": "Media ultimo 1 min",
+    "subscribers": "Sottoscrizioni", "subscribers_sub": "Sottoscrizioni attive",
+    "node_count": "Nodi", "node_count_sub": "Online/Totali",
+    "msg_trend": "Throughput messaggi", "conn_trend": "Andamento connessioni", "msg_in_trend": "Msg In", "msg_out_trend": "Msg Out", "msg_dropped_trend": "Msg Scartate", "connections_trend": "Connessioni", "topics_trend": "Topic", "subscriptions_trend": "Sottoscrizioni",
+    "publish": "Pubblicazione", "deliver": "Consegna", "connections": "Connessioni",
+    "nodes": "Elenco nodi", "group_connections": "Connessioni e sessioni",
+    "group_messages": "Messaggi", "group_subs": "Sottoscrizioni", "group_packets": "Pacchetti",
+    "client_connected": "Connessioni", "client_disconnected": "Disconnessioni",
+    "sessions_count": "Sessioni", "handshakings_count": "Handshake",
+    "handshakings_max": "Picco handshake", "handshakings_active_count": "Handshake attivi",
+    "handshakings_rate_count": "Tasso handshake", "handshakings_rate_max": "Picco tasso handshake",
+    "messages_publish": "Messaggi pubblicati", "messages_delivered": "Messaggi consegnati",
+    "messages_discarded": "Messaggi scartati", "subscriptions_count": "Sottoscrizioni",
+    "shared_subscriptions_count": "Sottoscrizioni condivise"
+  },
+  "gauge": {
+    "connections": "Connessioni",
+    "msg_in": "Messaggi in entrata",
+    "msg_out": "Messaggi in uscita",
+    "unit": " msg/s"
+  },
+  "msg_rate": {
+    "msg_in": "Tasso in entrata",
+    "msg_out": "Tasso in uscita",
+    "unit": " msg/s",
+    "publish": "Pubblica",
+    "delivered": "Consegnati",
+    "acked": "Confermati",
+    "big": "M",
+    "mid": "K"
+  },
+  "clients": {
+    "title": "Client", "search_placeholder": "Cerca ClientID...",
+    "filter_all": "Tutti gli stati", "filter_online": "Online", "filter_offline": "Offline",
+    "search": "Cerca", "client_id": "ClientID", "node": "Nodo", "ip": "IP",
+    "protocol": "Protocollo", "status": "Stato", "action": "Azione",
+    "connected": "● Online", "disconnected": "○ Offline", "disconnect": "Espelli",
+    "disconnect_confirm": "Espellere il client {clientId}?",
+    "disconnect_fail": "Espulsione fallita: {msg}", "no_results": "Nessun dato"
+  },
+  "subscriptions": {
+    "title": "Sottoscrizioni", "search_placeholder": "Cerca ClientID...",
+    "search": "Cerca", "client_id": "ClientID", "topic": "Argomento", "qos": "QoS",
+    "node": "Nodo", "share_group": "Gruppo condiviso", "action": "Azione",
+    "unsubscribe": "Cancella sottoscrizione",
+    "unsubscribe_confirm": "Cancellare sottoscrizione di {clientId} da {topic}?",
+    "unsubscribe_fail": "Cancellazione fallita: {msg}", "no_results": "Nessun dato"
+  },
+  "publish": {
+    "title": "Pubblica messaggio", "topic": "Argomento", "topic_placeholder": "es. data/sensor/temp",
+    "payload": "Contenuto", "payload_placeholder": "Contenuto del messaggio", "qos": "QoS",
+    "retain": "Mantieni", "submit": "Pubblica", "sending": "Pubblicazione...",
+    "result": "Risultato", "success": "Messaggio pubblicato", "error": "Pubblicazione fallita: {msg}"
+  },
+  "plugins": {
+    "title": "Plugin", "name": "Nome", "version": "Versione", "status": "Stato",
+    "action": "Azione", "running": "● In esecuzione", "stopped": "○ Arrestato",
+    "config": "Configurazione", "config_title": "Configurazione {name}", "config_loading": "Caricamento...",
+    "config_fail": "Fallito: {msg}", "close": "Chiudi", "no_results": "Nessun dato"
+  },
+  "common": {
+    "online": "Online", "offline": "Offline", "enabled": "Abilitato", "disabled": "Disabilitato",
+    "refresh": "Aggiorna", "logout": "Esci", "search": "Cerca",
+    "no_results": "Nessun risultato", "light_mode": "Modalità chiara", "dark_mode": "Modalità scura",
+    "loading": "Caricamento...", "error": "Richiesta fallita", "retry": "Riprova",
+    "close": "Chiudi", "dashboard": "Dashboard"
+  }
+}

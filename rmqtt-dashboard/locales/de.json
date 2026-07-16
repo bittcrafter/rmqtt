@@ -1,0 +1,94 @@
+{
+  "app": {"title": "RMQTT Dashboard", "loading": "Lädt..."},
+  "nav": {
+    "overview": "Cluster-Übersicht", "clients": "Clients", "subscriptions": "Abonnements",
+    "publish": "Veröffentlichen", "plugins": "Plugins", "language": "Sprache",
+    "toggle_sidebar": "Seitenleiste umschalten", "search_placeholder": "ClientID suchen...",
+    "group_monitoring": "Überwachung", "retained": "Behaltene Nachrichten",
+    "delayed_publish": "Verzögerte Veröffentlichung", "alarms": "Alarme",
+    "group_access_control": "Zugriffskontrolle", "auth": "Authentifizierung",
+    "acl": "Autorisierung", "blacklist": "Sperrliste", "flapping": "Flattererkennung",
+    "group_integration": "Integration", "webhooks": "Webhooks", "connectors": "Konnektoren",
+    "group_management": "Verwaltung", "group_cluster_config": "Cluster-Konfiguration",
+    "mqtt_config": "MQTT-Konfiguration", "cluster": "Cluster", "listeners": "Listener",
+    "logs": "Protokolle", "monitoring": "Überwachung", "group_mqtt_advanced": "MQTT erweitert",
+    "topic_rewrite": "Themenumschreibung", "auto_subscribe": "Auto-Abonnement",
+    "group_plugin_ext": "Erweiterungen", "hooks": "Hooks",
+    "group_diagnostics": "Diagnose", "ws_client": "WebSocket-Client",
+    "topics": "Themenmonitor", "slow_sub": "Langsames Abonnement", "trace": "Protokollverfolgung",
+    "drop_analysis": "Verwerfungsanalyse", "group_system": "System", "users": "Benutzer",
+    "audit_log": "Prüfprotokoll", "api_keys": "API-Schlüssel"
+  },
+  "login": {
+    "title": "Anmelden", "token_placeholder": "Token eingeben",
+    "subtitle": "Bearer Token eingeben, um sich anzumelden", "submit": "Anmelden",
+    "verifying": "Überprüfe...", "error_empty": "Token darf nicht leer sein",
+    "error_invalid": "Ungültiges Token oder Dienst nicht verfügbar"
+  },
+  "overview": {
+    "title": "Cluster-Übersicht", "nodes_title": "Knoten", "metrics_title": "Metriken",
+    "total_sessions": "Sitzungen gesamt", "online_sessions": "Online-Sitzungen",
+    "topics_count": "Themen", "retained_count": "Behaltene Nachrichten",
+    "nodes_count": "Knoten", "node_info": "Knoteninfo", "view_node_list": "Knotenliste anzeigen",
+    "node_name": "Knotenname", "node_role": "Rolle", "node_uptime": "Betriebszeit",
+    "node_version": "Version", "max_fds": "Max. FDs", "cpu_load": "CPU-Auslastung",
+    "node_memory": "Speicher", "time_range": "Zeitraum",
+    "node_distribution": "Verteilung der Verbindungen", "total": "Gesamt",
+    "node_id": "Knoten-ID", "node_name_th": "Name", "status": "Status",
+    "connections_count": "Verbindungen", "msg_per_sec": "Nachr./s", "cpu": "CPU",
+    "memory": "Speicher", "uptime": "Betriebszeit", "online": "● Online", "offline": "○ Offline",
+    "clients_connected": "Verbindungen", "clients_sub": "Aktive Verbindungen",
+    "msg_rate": "Nachrichten/s", "msg_rate_sub": "Durchschnitt letzte 1 Min",
+    "subscribers": "Abonnements", "subscribers_sub": "Aktive Abonnements",
+    "node_count": "Knoten", "node_count_sub": "Online/Gesamt",
+    "msg_trend": "Nachrichtendurchsatz", "conn_trend": "Verbindungstrend", "msg_in_trend": "Nachr. Rein", "msg_out_trend": "Nachr. Raus", "msg_dropped_trend": "Nachr. Verw.", "connections_trend": "Verbindungen", "topics_trend": "Topics", "subscriptions_trend": "Abonnements",
+    "publish": "Veröffentlichen", "deliver": "Zustellen", "connections": "Verbindungen",
+    "nodes": "Knotenliste", "group_connections": "Verbindungen und Sitzungen",
+    "group_messages": "Nachrichten", "group_subs": "Abonnements", "group_packets": "Pakete",
+    "client_connected": "Verbindungen", "client_disconnected": "Trennungen",
+    "sessions_count": "Sitzungen", "handshakings_count": "Handshakes",
+    "handshakings_max": "Handshake-Spitze", "handshakings_active_count": "Aktive Handshakes",
+    "handshakings_rate_count": "Handshake-Rate", "handshakings_rate_max": "Handshake-Raten-Spitze",
+    "messages_publish": "Veröffentlichte Nachrichten", "messages_delivered": "Zugestellte Nachrichten",
+    "messages_discarded": "Verworfene Nachrichten", "subscriptions_count": "Abonnements",
+    "shared_subscriptions_count": "Geteilte Abonnements"
+  },
+  "gauge": {"connections": "Verbindungen", "msg_in": "Nachr. Rein", "msg_out": "Nachr. Raus", "unit": " msg/s"},
+  "msg_rate": {"msg_in": "Rein-R.", "msg_out": "Raus-R.", "unit": " msg/s", "publish": "Veröffentl.", "delivered": "Zugestellt", "acked": "Bestätigt", "big": "M", "mid": "K"},
+  "clients": {
+    "title": "Clients", "search_placeholder": "ClientID suchen...",
+    "filter_all": "Alle Status", "filter_online": "Online", "filter_offline": "Offline",
+    "search": "Suchen", "client_id": "ClientID", "node": "Knoten", "ip": "IP",
+    "protocol": "Protokoll", "status": "Status", "action": "Aktion",
+    "connected": "● Online", "disconnected": "○ Offline", "disconnect": "Ausschließen",
+    "disconnect_confirm": "Client {clientId} ausschließen?",
+    "disconnect_fail": "Ausschluss fehlgeschlagen: {msg}", "no_results": "Keine Daten"
+  },
+  "subscriptions": {
+    "title": "Abonnements", "search_placeholder": "ClientID suchen...",
+    "search": "Suchen", "client_id": "ClientID", "topic": "Thema", "qos": "QoS",
+    "node": "Knoten", "share_group": "Freigabegruppe", "action": "Aktion",
+    "unsubscribe": "Abbestellen",
+    "unsubscribe_confirm": "{clientId} von {topic} abbestellen?",
+    "unsubscribe_fail": "Abbestellen fehlgeschlagen: {msg}", "no_results": "Keine Daten"
+  },
+  "publish": {
+    "title": "Nachricht veröffentlichen", "topic": "Thema", "topic_placeholder": "z.B. data/sensor/temp",
+    "payload": "Inhalt", "payload_placeholder": "Nachrichteninhalt", "qos": "QoS",
+    "retain": "Behalten", "submit": "Veröffentlichen", "sending": "Veröffentliche...",
+    "result": "Ergebnis", "success": "Nachricht veröffentlicht", "error": "Veröffentlichung fehlgeschlagen: {msg}"
+  },
+  "plugins": {
+    "title": "Plugins", "name": "Name", "version": "Version", "status": "Status",
+    "action": "Aktion", "running": "● Läuft", "stopped": "○ Gestoppt",
+    "config": "Konfiguration", "config_title": "{name} Konfiguration", "config_loading": "Lädt...",
+    "config_fail": "Fehlgeschlagen: {msg}", "close": "Schließen", "no_results": "Keine Daten"
+  },
+  "common": {
+    "online": "Online", "offline": "Offline", "enabled": "Aktiviert", "disabled": "Deaktiviert",
+    "refresh": "Aktualisieren", "logout": "Abmelden", "search": "Suchen",
+    "no_results": "Keine Ergebnisse", "light_mode": "Heller Modus", "dark_mode": "Dunkler Modus",
+    "loading": "Lädt...", "error": "Anfrage fehlgeschlagen", "retry": "Wiederholen",
+    "close": "Schließen", "dashboard": "Dashboard"
+  }
+}

@@ -42,12 +42,12 @@ use rmqtt::{
 
 use salvo::serve_static::{static_embed, StaticDir};
 
+use super::embed::DashboardAssets;
 use super::prome::{Monitor, PROME_MONITOR};
 use super::types::{
     ClientSearchParams, ClientSearchResult, Message, MessageReply, PrometheusDataType, PublishParams,
     SubscribeParams, UnsubscribeParams,
 };
-use super::embed::DashboardAssets;
 use super::{clients, plugin, prome, subs, PluginConfigType};
 
 struct BearerValidator {
@@ -195,13 +195,9 @@ pub(crate) async fn listen_and_serve(
             root_router = root_router.push(
                 Router::with_path("dashboard/{**path}").get(StaticDir::new([dir]).defaults("index.html")),
             );
-            root_router = root_router.push(
-                Router::with_path("{**path}").get(StaticDir::new([dir]).defaults("index.html")),
-            );
-            log::info!(
-                "Dashboard SPA mounted from filesystem: {dir}, canonical: {:?}",
-                path.canonicalize()
-            );
+            root_router = root_router
+                .push(Router::with_path("{**path}").get(StaticDir::new([dir]).defaults("index.html")));
+            log::info!("Dashboard SPA mounted from filesystem: {dir}, canonical: {:?}", path.canonicalize());
             true
         } else {
             log::warn!(
@@ -215,15 +211,11 @@ pub(crate) async fn listen_and_serve(
 
     if !dashboard_mounted {
         root_router = root_router.push(
-            Router::with_path("dashboard/{*path}").get(
-                static_embed::<DashboardAssets>().fallback("index.html"),
-            ),
+            Router::with_path("dashboard/{*path}")
+                .get(static_embed::<DashboardAssets>().fallback("index.html")),
         );
-        root_router = root_router.push(
-            Router::with_path("{*path}").get(
-                static_embed::<DashboardAssets>().fallback("index.html"),
-            ),
-        );
+        root_router = root_router
+            .push(Router::with_path("{*path}").get(static_embed::<DashboardAssets>().fallback("index.html")));
         log::info!("Dashboard SPA mounted from embedded assets (rust-embed)");
     }
 
