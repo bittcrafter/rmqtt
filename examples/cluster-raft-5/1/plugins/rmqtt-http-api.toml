@@ -11,8 +11,3 @@ http_laddr = "0.0.0.0:6060"
 
 
 
-
-## Dashboard SPA static files directory
-## Path is relative to the server's working directory (CWD).
-## Set to "" or comment out to disable the dashboard.
-dashboard_static_dir = "../../../rmqtt-dashboard/"
