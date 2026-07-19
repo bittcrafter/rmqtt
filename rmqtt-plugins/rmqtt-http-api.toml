@@ -19,3 +19,43 @@ message_expiry_interval = "5m"
 ## Value: Duration
 ## Default: "5s"
 prometheus_metrics_cache_interval = "5s"
+
+##--------------------------------------------------------------------
+## Stats/Metrics History Persistence (optional)
+##
+## When `storage` is configured, the plugin periodically snapshots
+## Stats and Metrics, converts them to JSON, and writes them to the
+## backend with TTL-based expiration. History query APIs
+## (`/api/v1/stats/history`, `/api/v1/metrics/history`, etc.) then
+## become available.
+##
+## To disable, omit the entire `storage` section.
+##--------------------------------------------------------------------
+
+##─── Redb backend ──────────────────────────────────────────────────────
+storage.type = "redb"
+storage.redb.path = "/var/log/rmqtt/.cache/http-api-history/{node}.redb"
+
+##─── Sled backend (default) ─────────────────────────────────────────────
+#storage.type = "sled"
+#storage.sled.path = "/var/log/rmqtt/.cache/http-api-history/{node}.sled"
+#storage.sled.cache_capacity = "1G"
+
+##─── Redis backend ──────────────────────────────────────────────────────
+# storage.type = "redis"
+# storage.redis.url = "redis://127.0.0.1:6379/"
+# storage.redis.prefix = "http-api-history-{node}"
+
+##─── Redis Cluster backend ──────────────────────────────────────────────
+# storage.type = "redis-cluster"
+# storage.redis-cluster.urls = ["redis://127.0.0.1:6380/", "redis://127.0.0.1:6381/"]
+# storage.redis-cluster.prefix = "http-api-history-{node}"
+
+##─── Flush interval (how often to snapshot Stats/Metrics) ───────────────
+## Default: "5s"
+# flush_interval = "5s"
+
+##─── History retention (TTL for each data point) ────────────────────────
+## After this period, the storage backend automatically evicts old data.
+## Default: "7d"
+# history_retention = "7d"
