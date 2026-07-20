@@ -5381,9 +5381,9 @@ dependencies = [
 
 [[package]]
 name = "rmqtt-storage"
-version = "0.11.0"
+version = "0.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "03aae38efee1576bd33c0ed54647f79aedd958a90292198f991c9104709ab25d"
+checksum = "a1f79d7692207992353b453bb7f7b548857322c775fc2db78c9439935f2867ff"
 dependencies = [
  "ahash",
  "anyhow",

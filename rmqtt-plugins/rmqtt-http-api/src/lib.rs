@@ -159,7 +159,8 @@ impl Plugin for HttpApiPlugin {
                         retention,
                         node_id,
                     );
-                    let wh = start_warmup(hc.stats.clone(), hc.metrics.clone(), db.clone(), node_id);
+                    let wh =
+                        start_warmup(hc.stats.clone(), hc.metrics.clone(), db.clone(), node_id, retention);
 
                     let combined = tokio::spawn(async move {
                         let _ = tokio::join!(fh, rh, wh);

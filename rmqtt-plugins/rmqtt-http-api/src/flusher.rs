@@ -213,24 +213,39 @@ pub fn start_warmup(
     metrics_cache: HistoryCache,
     storage_db: StorageDb,
     node_id: NodeId,
+    retention: Duration,
 ) -> tokio::task::JoinHandle<()> {
     tokio::spawn(async move {
-        let stats_count = load_into_cache(&stats_cache, &storage_db, STATS_PREFIX, node_id).await;
-        let metrics_count = load_into_cache(&metrics_cache, &storage_db, METRICS_PREFIX, node_id).await;
+        let stats_count = load_into_cache(&stats_cache, &storage_db, STATS_PREFIX, node_id, retention).await;
+        let metrics_count =
+            load_into_cache(&metrics_cache, &storage_db, METRICS_PREFIX, node_id, retention).await;
         log::info!("[http-api] history cache warmup complete, stats={stats_count}, metrics={metrics_count}");
     })
 }
 
+/// Load history data from storage into LRU cache, discarding expired entries.
+///
+/// For each key in storage, the embedded timestamp (`ts`) is compared against the
+/// current wall-clock time minus `retention`. If the data point has expired
+/// (`now - ts > retention`), it is skipped (not loaded into the LRU) and also
+/// **deleted from storage** so it does not re-appear on a subsequent restart.
 async fn load_into_cache(
     cache: &HistoryCache,
     storage_db: &StorageDb,
     prefix: &str,
     node_id: NodeId,
+    retention: Duration,
 ) -> usize {
     let pattern = format!("{}:{}:*", prefix, node_id);
     // Collect (timestamp, key_bytes) pairs from storage scan, then sort by
     // timestamp ascending so the LRU cache evicts oldest entries first on
     // capacity pressure.
+    let retention_ms = retention.as_millis() as u64;
+    let now_ms =
+        std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).unwrap_or_default().as_millis()
+            as u64;
+    let cutoff = now_ms.saturating_sub(retention_ms);
+
     let keys_sorted: Vec<(u64, Vec<u8>)> = {
         let mut iter_storage_db = storage_db.clone();
         let mut pairs = Vec::new();
@@ -249,6 +264,14 @@ async fn load_into_cache(
     };
     let mut count = 0usize;
     for (ts, key_bytes) in &keys_sorted {
+        //Expiration check: discard data points older than `retention`.
+        if *ts < cutoff {
+            log::debug!(
+                "[http-api] warmup discarding expired entry ts={ts} (< cutoff={cutoff}), removing from storage"
+            );
+            let _ = storage_db.remove(key_bytes).await;
+            continue;
+        }
         if let Ok(Some(json)) = storage_db.get::<_, String>(key_bytes).await {
             let entry = CacheEntry { json, flags: EntryFlags::new(EntryFlags::NONE) };
             cache.write().await.put(*ts, entry);

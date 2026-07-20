@@ -2561,7 +2561,7 @@ pub(crate) async fn query_history_local(
     drop(guard);
 
     // Sort descending by timestamp (newest first).
-    entries.sort_by(|a, b| b.0.cmp(&a.0));
+    entries.sort_by_key(|b| std::cmp::Reverse(b.0));
     entries.truncate(limit);
 
     let data: Vec<serde_json::Value> = entries.into_iter().map(|(_, v)| v).collect();
@@ -3000,7 +3000,7 @@ fn aggregate_history_data(nodes_data: &HashMap<NodeId, HistoryData>) -> (Vec<ser
     }
 
     // Sort descending by timestamp.
-    result.sort_by(|a, b| b.0.cmp(&a.0));
+    result.sort_by_key(|b| std::cmp::Reverse(b.0));
 
     let data: Vec<serde_json::Value> = result.into_iter().map(|(_, v)| v).collect();
     (data, node_count)
