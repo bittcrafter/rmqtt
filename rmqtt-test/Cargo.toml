@@ -32,3 +32,9 @@ uuid = { workspace = true, features = ["v4"] }
 clap = { workspace = true }
 futures = { workspace = true }
 parking_lot = { workspace = true }
+# TLS / WebSocket transports (G27)
+rustls = { workspace = true }
+tokio-rustls = { workspace = true }
+tokio-tungstenite = { workspace = true, features = ["rustls-tls-webpki-roots"] }
+# socket options for raw-socket tests (G32 RST)
+socket2 = { workspace = true }
