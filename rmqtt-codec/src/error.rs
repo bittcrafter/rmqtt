@@ -72,6 +72,8 @@ pub enum DecodeError {
     UnsupportedProtocolLevel,
     #[error("Connect frame's reserved flag is set")]
     ConnectReservedFlagSet,
+    #[error("Invalid connect flags")]
+    InvalidConnectFlags,
     #[error("ConnectAck frame's reserved flag is set")]
     ConnAckReservedFlagSet,
     #[error("Invalid client id")]
@@ -107,6 +109,7 @@ impl ToReasonCode for DecodeError {
             DecodeError::MalformedPacket => DisconnectReasonCode::MalformedPacket,
             DecodeError::UnsupportedProtocolLevel => DisconnectReasonCode::ImplementationSpecificError,
             DecodeError::ConnectReservedFlagSet => DisconnectReasonCode::ProtocolError,
+            DecodeError::InvalidConnectFlags => DisconnectReasonCode::ProtocolError,
             DecodeError::ConnAckReservedFlagSet => DisconnectReasonCode::ProtocolError,
             DecodeError::InvalidClientId => DisconnectReasonCode::NotAuthorized,
             DecodeError::UnsupportedPacketType => DisconnectReasonCode::ImplementationSpecificError,
