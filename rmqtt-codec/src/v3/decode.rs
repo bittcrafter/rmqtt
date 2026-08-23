@@ -64,6 +64,14 @@ fn decode_connect_packet(src: &mut Bytes) -> Result<Packet, DecodeError> {
 
     let flags = ConnectFlags::from_bits(src.get_u8()).ok_or(DecodeError::ConnectReservedFlagSet)?;
 
+    // MQTT-3.1.2-11/13: if the Will Flag is 0, the Will QoS and Will Retain
+    // MUST be 0
+    ensure!(
+        flags.contains(ConnectFlags::WILL)
+            || (!flags.intersects(ConnectFlags::WILL_QOS) && !flags.contains(ConnectFlags::WILL_RETAIN)),
+        DecodeError::InvalidConnectFlags
+    );
+
     let keep_alive = u16::decode(src)?;
     let client_id = ByteString::decode(src)?;
 
