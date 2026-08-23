@@ -226,6 +226,11 @@ fn build_suites(opt: &Opt) -> Vec<TestSuite> {
         suites.push(build_functional_v5_cluster_suite());
     }
 
+    // G27 TLS/WebSocket transport suite (self-managed broker; standalone).
+    if should_run("functional_transport", opt) {
+        suites.push(build_transport_suite());
+    }
+
     if should_run("stress", opt) {
         suites.push(build_stress_suite(opt.stress_clients));
     }
@@ -357,6 +362,14 @@ fn build_functional_v3_suite() -> TestSuite {
     suite.add(ProtocolErrorV3PublishPacketIdZeroTest);
     suite.add(ProtocolErrorV3BadRemainingLengthTest);
     suite.add(ProtocolErrorV3EmptyTopicFilterTest);
+    // Empty topic filters (2026-08-23): SUBSCRIBE/UNSUBSCRIBE with an
+    // empty-string filter or (UNSUBSCRIBE) zero filters must close the
+    // connection (MQTT-3.8.3-1 / MQTT-3.10.3-1 / MQTT-4.7.3-1)
+    suite.add(ProtocolErrorV3SubscribeEmptyFilterTest);
+    suite.add(ProtocolErrorV3UnsubscribeEmptyTest);
+    suite.add(ProtocolErrorV3UnsubscribeEmptyFilterTest);
+    // PUBLISH with empty Topic Name must close the connection (MQTT-4.7.3-1)
+    suite.add(ProtocolErrorV3PublishEmptyTopicTest);
     suite.add(ProtocolErrorV3ReservedPacketTypeTest);
     suite.add(ProtocolErrorV3SubscribeQos0FixedHeaderTest);
     suite
@@ -365,6 +378,7 @@ fn build_functional_v3_suite() -> TestSuite {
 fn build_functional_v311_suite() -> TestSuite {
     use tests::functional::auth_v311::*;
     use tests::functional::boundary::*;
+    use tests::functional::connack_return_codes_v311::*;
     use tests::functional::connect_v311::*;
     use tests::functional::dollar_topics::*;
     use tests::functional::empty_clientid_cleansession0_v311::*;
@@ -428,7 +442,6 @@ fn build_functional_v311_suite() -> TestSuite {
     suite.add(Qos2DuplicateDetectionTest);
     // Protocol error edge cases
     suite.add(InvalidProtocolVersionTest);
-    suite.add(EmptyTopicFilterTest);
     // QoS 2 exactly-once conformance (GitHub issue #456, MQTT 3.1.1)
     suite.add(Qos2ReplayedPublishDedupV311Test);
     suite.add(Qos2PubrelResendOnResumeV311Test);
@@ -466,6 +479,104 @@ fn build_functional_v311_suite() -> TestSuite {
     suite.add(WildcardV311CaseSensitiveTest);
     suite.add(WildcardV311LeadingSlashTest);
     suite.add(WildcardV311HashNotLastTest);
+    // --- P0 conformance gap fill (designs/mqtt-311-standalone-test-gap-analysis.md) ---
+    // G1 invalid UTF-8 in CONNECT fields
+    suite.add(ConnectV311InvalidUtf8ClientIdTest);
+    suite.add(ConnectV311InvalidUtf8WillTopicTest);
+    suite.add(ConnectV311InvalidUtf8UsernameTest);
+    // G1 invalid UTF-8 topic in PUBLISH
+    suite.add(ProtocolErrorV311InvalidUtf8TopicTest);
+    // G2 remaining-length var-int boundaries
+    suite.add(RemainingLengthMaxV311Test);
+    suite.add(RemainingLengthTransitionV311Test);
+    // G3/G4/G5 CONNECT flag consistency
+    suite.add(ConnectV311WillFlagZeroButQosSetTest);
+    suite.add(ConnectV311WillQos3Test);
+    suite.add(ConnectV311UsernameFlagMismatchTest);
+    suite.add(ConnectV311PasswordFlagMismatchTest);
+    // G6 QoS negotiation / downgrade
+    suite.add(QosDowngradeV311Test);
+    // G7 PUBREL/PUBREC/PUBCOMP fixed-header flags
+    suite.add(ProtocolErrorV311PubrelWrongFlagsTest);
+    suite.add(ProtocolErrorV311PubrecPubcompWrongFlagsTest);
+    // G8 QoS 0 PUBLISH must not carry a packet id (payload integrity)
+    suite.add(ProtocolErrorV311Qos0PublishWithPacketIdTest);
+    // G9 SUBSCRIBE/UNSUBSCRIBE packet id 0
+    suite.add(ProtocolErrorV311SubscribePacketIdZeroTest);
+    suite.add(ProtocolErrorV311UnsubscribePacketIdZeroTest);
+    // G10 QoS 1 redelivery on session resume
+    suite.add(Qos1PublishResendOnResumeV311Test);
+    // --- P1 conformance gap fill ---
+    // G11 truncated packet / declared-length mismatch
+    suite.add(ProtocolErrorV311TruncatedPacketTest);
+    suite.add(ProtocolErrorV311DeclaredLengthMismatchTest);
+    // G12 reserved packet type 0x0F
+    suite.add(ProtocolErrorV311PacketType15Test);
+    // G13 CONNACK return codes (split into @auth-denied / @auth-jwt-denied
+    // sub-suites by broker_config())
+    suite.add(ConnackReturnCodesAuthHttpV311Test);
+    suite.add(ConnackNotAuthorizedV311Test);
+    // G14 concurrent session takeover
+    suite.add(SessionV311TakeoverTest);
+    // G15 empty topic levels
+    suite.add(WildcardEmptyLevelsV311Test);
+    // G16 overlapping wildcard subscriptions
+    suite.add(WildcardV311OverlapTest);
+    // G17 empty topic name in PUBLISH
+    suite.add(ProtocolErrorV311PublishEmptyTopicTest);
+    // G18 UNSUBSCRIBE with no topic filters
+    suite.add(ProtocolErrorV311UnsubscribeEmptyTest);
+    // Empty topic filters (2026-08-23): SUBSCRIBE/UNSUBSCRIBE with zero
+    // filters or an empty-string filter must close the connection
+    // (MQTT-3.8.3-1 / MQTT-3.10.3-1 / MQTT-4.7.3-1)
+    suite.add(ProtocolErrorV311SubscribeEmptyTest);
+    suite.add(ProtocolErrorV311SubscribeEmptyFilterTest);
+    suite.add(ProtocolErrorV311UnsubscribeEmptyFilterTest);
+    // G19 live publish keeps the retained message
+    suite.add(RetainV311LivePublishKeepsRetainedTest);
+    // G20 Will QoS 0/1 + no-fire on rejected connect
+    suite.add(LastWillV311Qos0Test);
+    suite.add(LastWillV311Qos1Test);
+    suite.add(WillNotFireOnRejectedConnectTest);
+    // G21 unsolicited PUBREL (must not crash)
+    suite.add(ProtocolErrorV311UnsolicitedPubrelTest);
+    // --- P2 boundary / combination / transport gap fill (G22-G26, G28) ---
+    // G22 empty ClientId + Clean Session 1: assigned ids must be unique
+    suite.add(ConnectV311AssignedClientIdTest);
+    // G23 keep-alive 1.5x window boundary / G24 explicit PINGRESP
+    suite.add(KeepAliveV311WindowBoundaryTest);
+    suite.add(KeepAliveV311PingRespExplicitTest);
+    // G25 QoS 2 message ordering
+    suite.add(OrderingQos2V311Test);
+    // G26 retained message survives a broker restart (sled persistence)
+    suite.add(RetainV311RestartRecoveryTest);
+    // G28 broker->client QoS 2 break point: no PUBREC -> DUP=1 retransmit
+    suite.add(Qos2BrokerToClientNoPubrecV311Test);
+    // --- P3 optional / low risk (G29-G32) ---
+    // G29 65535-byte client id boundary
+    suite.add(ConnectV311ClientId65535Test);
+    // G30 CONNECT payload field order violation
+    suite.add(ConnectV311PayloadOrderErrorTest);
+    // G31 binary (non-UTF-8) will payload is accepted and delivered verbatim
+    suite.add(LastWillV311InvalidUtf8PayloadTest);
+    // G32 persistent session survives TCP FIN / RST disconnects
+    suite.add(SessionV311TcpFinRstTest);
+    suite
+}
+
+/// Standalone transport suite: the G27 TLS / WebSocket cases live here (not
+/// in functional_v311) so they can be run alone without the ~100 other v311
+/// cases:
+///
+///     ./target/release/mqtt_harness --workspace . --suites functional_transport
+fn build_transport_suite() -> TestSuite {
+    use tests::functional::transport_tls::*;
+
+    let mut suite = TestSuite::new("functional_transport");
+    suite.add(TransportTlsV311Test);
+    suite.add(TransportWssV311Test);
+    suite.add(TransportWsV311Test);
+    suite.add(TransportTlsMtlsV311Test);
     suite
 }
 
@@ -607,6 +718,7 @@ fn build_stress_suite(client_count: usize) -> TestSuite {
     use tests::stress::fanout::*;
     use tests::stress::load_v311::*;
     use tests::stress::memory::*;
+    use tests::stress::mixed_qos::*;
 
     let mut suite = TestSuite::new("stress");
     suite.add(ConnectionLoadTest { client_count });
@@ -614,6 +726,8 @@ fn build_stress_suite(client_count: usize) -> TestSuite {
     suite.add(FanOutTest::default());
     suite.add(RetainFloodTest);
     suite.add(SubscriptionStressTest);
+    // P3 G33: mixed QoS 0/1/2 load — exactly-once delivery without loss.
+    suite.add(MixedQosLoadTest::default());
     suite
 }
 
@@ -623,6 +737,8 @@ fn build_chaos_suite(iterations: usize) -> TestSuite {
     use tests::chaos::restart::*;
     use tests::functional::cluster_session_restart::*;
     use tests::functional::session_restart_stress::*;
+    use tests::functional::session_storage_expired_cleanup::*;
+    use tests::functional::session_storage_expired_cleanup_edge::*;
 
     let mut suite = TestSuite::new("chaos");
     suite.add(BrokerRestartTest);
@@ -646,6 +762,12 @@ fn build_chaos_suite(iterations: usize) -> TestSuite {
     suite.add(StressClusterWholeRestartBroadcastTest);
     suite.add(StressClusterRestartRaftTest);
     suite.add(StressClusterWholeRestartRaftTest);
+    // Session-storage startup-load optimization: expired offline sessions are
+    // pre-filtered during load (self-managed broker, `session_storage_expired_cleanup`).
+    suite.add(SessionStorageExpiredCleanupTest);
+    // Edge semantics of the same pre-filter: default expiry (0), DISCONNECT
+    // property extending/shortening the session expiry.
+    suite.add(SessionStorageExpiredCleanupEdgeTest);
     suite.add(ConnectionChurnTest { cycles: iterations * 5 });
     suite.add(ReconnectStormTest { client_count: 50 });
     suite.add(Qos1ReliabilityTest { message_count: iterations * 10 });

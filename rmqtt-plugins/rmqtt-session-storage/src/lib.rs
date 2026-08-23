@@ -153,7 +153,7 @@ impl StoragePlugin {
                             continue;
                         }
                         Ok(None) => {
-                            log::warn!("{id_key:?} offline session basic info is None");
+                            log::debug!("{id_key:?} offline session basic info is None");
                             if let Err(e) = storage_db.map_remove(m.name()).await {
                                 log::warn!("{id_key:?} remove offline session info error, {e}");
                             }

@@ -584,6 +584,29 @@ impl MqttV5Client {
         Ok(())
     }
 
+    /// Disconnect gracefully with a V5 session-expiry property, which
+    /// overrides the CONNECT-requested value for the ending session.
+    /// `None` omits the property (the session keeps the CONNECT value).
+    pub async fn disconnect_with_session_expiry(&self, expiry_secs: Option<u32>) -> Result<()> {
+        self.connected.store(false, Ordering::Relaxed);
+
+        let disc = rmqtt_codec::v5::Disconnect {
+            reason_code: rmqtt_codec::v5::DisconnectReasonCode::NormalDisconnection,
+            session_expiry_interval_secs: expiry_secs,
+            server_reference: None,
+            reason_string: None,
+            user_properties: Vec::new(),
+        };
+
+        {
+            let mut writer = self.writer.lock().await;
+            let _ = writer.send_packet(&PacketV5::Disconnect(disc)).await;
+            writer.shutdown().await?;
+        }
+
+        Ok(())
+    }
+
     /// Abort connection without sending DISCONNECT (simulates unclean disconnect)
     /// Used for testing Last Will and Testament
     pub async fn abort_connection(&self) -> Result<()> {
