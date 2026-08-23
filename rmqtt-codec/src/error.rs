@@ -83,6 +83,8 @@ pub enum DecodeError {
     PacketIdRequired,
     #[error("Max size exceeded: size={size}, max={max}")]
     MaxSizeExceeded { size: u32, max: u32 },
+    #[error("Invalid topic filter")]
+    InvalidTopicFilter,
     #[error("utf8 error")]
     Utf8Error,
     #[error("io error, {:?}", _0)]
@@ -108,6 +110,7 @@ impl ToReasonCode for DecodeError {
             DecodeError::UnsupportedPacketType => DisconnectReasonCode::ImplementationSpecificError,
             DecodeError::PacketIdRequired => DisconnectReasonCode::ProtocolError,
             DecodeError::MaxSizeExceeded { .. } => DisconnectReasonCode::PacketTooLarge,
+            DecodeError::InvalidTopicFilter => DisconnectReasonCode::TopicFilterInvalid,
             DecodeError::Utf8Error => DisconnectReasonCode::PayloadFormatInvalid,
             DecodeError::Io(_) => DisconnectReasonCode::UnspecifiedError,
         }

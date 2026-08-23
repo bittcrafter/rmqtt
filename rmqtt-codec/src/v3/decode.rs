@@ -132,10 +132,15 @@ fn decode_subscribe_packet(src: &mut Bytes) -> Result<Packet, DecodeError> {
     let mut topic_filters = Vec::new();
     while src.has_remaining() {
         let topic = ByteString::decode(src)?;
+        // MQTT-4.7.3-1: topic filters MUST be at least one character long
+        ensure!(!topic.is_empty(), DecodeError::InvalidTopicFilter);
         ensure!(src.remaining() >= 1, DecodeError::InvalidLength);
         let qos = (src.get_u8() & 0b0000_0011).try_into()?;
         topic_filters.push((topic, qos));
     }
+    // MQTT-3.8.3-1: the payload of a SUBSCRIBE packet MUST contain at least
+    // one topic filter
+    ensure!(!topic_filters.is_empty(), DecodeError::InvalidTopicFilter);
 
     Ok(Packet::Subscribe { packet_id, topic_filters })
 }
@@ -157,8 +162,15 @@ fn decode_unsubscribe_packet(src: &mut Bytes) -> Result<Packet, DecodeError> {
     let packet_id = NonZeroU16::decode(src)?;
     let mut topic_filters = Vec::new();
     while src.remaining() > 0 {
-        topic_filters.push(ByteString::decode(src)?);
+        let topic = ByteString::decode(src)?;
+        // MQTT-4.7.3-1: topic filters MUST be at least one character long
+        ensure!(!topic.is_empty(), DecodeError::InvalidTopicFilter);
+        topic_filters.push(topic);
     }
+    // MQTT-3.10.3-1: the payload of an UNSUBSCRIBE packet MUST contain at
+    // least one topic filter
+    ensure!(!topic_filters.is_empty(), DecodeError::InvalidTopicFilter);
+
     Ok(Packet::Unsubscribe { packet_id, topic_filters })
 }
 
