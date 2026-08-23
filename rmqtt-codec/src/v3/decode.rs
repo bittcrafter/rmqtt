@@ -109,6 +109,8 @@ fn decode_connect_ack_packet(src: &mut Bytes) -> Result<Packet, DecodeError> {
 
 fn decode_publish_packet(src: &mut Bytes, packet_flags: u8) -> Result<Packet, DecodeError> {
     let topic = ByteString::decode(src)?;
+    // MQTT-4.7.3-1: Topic Names MUST be at least one character long
+    ensure!(!topic.is_empty(), DecodeError::InvalidTopicName);
     let qos = QoS::try_from((packet_flags & 0b0110) >> 1)?;
     let packet_id = if qos == QoS::AtMostOnce {
         None
