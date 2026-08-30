@@ -187,6 +187,9 @@ impl Subscribe {
             let opts = SubscriptionOptions::decode(src)?;
             topic_filters.push((topic, opts));
         }
+        // [MQTT-3.8.3-3] The SUBSCRIBE payload MUST contain at least one
+        // Topic Filter; an empty payload is a Protocol Error (parity with v3).
+        ensure!(!topic_filters.is_empty(), DecodeError::InvalidTopicFilter);
 
         Ok(Self { packet_id, id: sub_id, user_properties, topic_filters })
     }
@@ -222,6 +225,9 @@ impl Unsubscribe {
         while src.remaining() > 0 {
             topic_filters.push(ByteString::decode(src)?);
         }
+        // [MQTT-3.10.3-2] The UNSUBSCRIBE payload MUST contain at least one
+        // Topic Filter; an empty payload is a Protocol Error (parity with v3).
+        ensure!(!topic_filters.is_empty(), DecodeError::InvalidTopicFilter);
 
         Ok(Self { packet_id, user_properties, topic_filters })
     }
