@@ -316,11 +316,11 @@ All available hook types:
 ### Handler Priority
 
 ```rust
-// Register with specific priority (lower = earlier execution)
+// Register with specific priority (higher = earlier execution)
 register.add_priority(Type::MessagePublish, handler, 100).await
 ```
 
-The `counter` plugin uses `Priority::MAX` to ensure it runs last.
+The `counter` plugin uses `Priority::MAX`, so it runs first in each hook chain.
 
 ---
 
