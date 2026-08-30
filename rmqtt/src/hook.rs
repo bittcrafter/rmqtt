@@ -25,7 +25,7 @@
 //!
 //! ## Key Features
 //! - Protocol version specific handling (v3.1, v3.1.1, v5)
-//! - Priority-based handler ordering (0=highest)
+//! - Priority-based handler ordering (higher value = higher priority)
 //! - Atomic hook registration/enabling
 //! - Session-aware processing context
 //! - Comprehensive result type system
@@ -42,8 +42,10 @@
 //! 2. Register via `HookManager::register()`
 //! 3. Process hook results via `HookResult` enum
 //!
-//! Note: All hooks are executed in reverse priority order (high to low)
-//! until a handler returns `proceed=false`.
+//! Note: Handlers are dispatched in descending priority order (numerically
+//! highest `Priority` value first). Handlers sharing the same priority are
+//! dispatched in unspecified order. The chain runs until a handler returns
+//! `proceed=false`.
 
 use std::collections::BTreeMap;
 use std::num::NonZeroU32;
@@ -72,8 +74,10 @@ use crate::Result;
 
 /// Hook handler priority value.
 ///
-/// Lower numerical values indicate higher priority.
-/// Priority 0 is the highest (executed first).
+/// Higher numerical values indicate higher priority: a handler registered
+/// with a larger `Priority` is dispatched before handlers with smaller
+/// values. The default priority of `0` is the *lowest*. Handlers sharing
+/// the same priority are dispatched in unspecified order.
 pub type Priority = u32;
 
 /// Whether hook chain execution should continue.
@@ -99,7 +103,8 @@ pub type ReturnType = (Proceed, Option<HookResult>);
 ///
 /// 1. A session-level event occurs (e.g., connect, publish, subscribe).
 /// 2. [`HookManager`] dispatches to the appropriate hook [`Type`].
-/// 3. Registered handlers execute in reverse priority order (highest first).
+/// 3. Registered handlers execute in descending priority order (numerically
+///    highest `Priority` value first).
 /// 4. Each handler receives the accumulated result from previous handlers.
 /// 5. If any handler returns `proceed=false`, execution short-circuits.
 /// 6. The final result is returned to the caller.
@@ -194,14 +199,17 @@ pub trait HookManager: Sync + Send {
 /// Handlers are not active until `start()` is called.
 #[async_trait]
 pub trait Register: Sync + Send {
-    /// Register a handler with default priority (0, highest).
+    /// Register a handler with the default priority (0, the lowest).
+    ///
+    /// Handlers with higher priorities are dispatched first.
     async fn add(&self, typ: Type, handler: Box<dyn Handler>) {
         self.add_priority(typ, 0, handler).await;
     }
 
     /// Register a handler with a specific priority level.
     ///
-    /// Lower priority values execute first.
+    /// Higher priority values execute first. Handlers sharing the same
+    /// priority execute in unspecified order.
     async fn add_priority(&self, typ: Type, priority: Priority, handler: Box<dyn Handler>);
 
     /// Activate all registered handlers.
@@ -614,9 +622,10 @@ type HandlerId = String;
 ///
 /// # Handler Execution
 ///
-/// Handlers are executed in reverse BTreeMap order (highest priority first).
-/// Each handler receives the accumulated result from prior handlers.
-/// If any handler returns `proceed = false`, the chain short-circuits.
+/// Handlers are executed in reverse BTreeMap order, i.e. numerically
+/// highest `Priority` value first. Each handler receives the accumulated
+/// result from prior handlers. If any handler returns `proceed = false`,
+/// the chain short-circuits.
 #[derive(Clone)]
 pub struct DefaultHookManager {
     #[allow(clippy::type_complexity)]

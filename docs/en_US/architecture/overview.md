@@ -273,7 +273,7 @@ pub trait Handler: Send + Sync {
 
 ### Hook Registration Priority
 
-Handlers can register with a priority. Lower values execute first. The `counter` plugin registers at `Priority::MAX` to ensure it runs last.
+Handlers can register with a priority. Higher values execute first (numerically highest `Priority` first). The `counter` plugin registers at `Priority::MAX`, so it runs first in each hook chain.
 
 ---
 
