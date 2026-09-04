@@ -87,7 +87,7 @@ use crate::codec::v5::RetainHandling;
 use crate::codec::{
     v3,
     v5::{
-        self, Auth, PublishAck2, PublishAck2Reason, PublishAckReason, SubscribeAckReason, ToReasonCode,
+        self, PublishAck2, PublishAck2Reason, PublishAckReason, SubscribeAckReason, ToReasonCode,
         UserProperties,
     },
 };
@@ -845,8 +845,13 @@ impl SessionState {
                 return Ok(());
             }
             Packet::V5(v5::Packet::Auth(_)) => {
-                sink.v5_mut().send_auth(Auth::default()).await?;
-                //@TODO Consider implementing Auth through hooks
+                // rmqtt does not support MQTT 5.0 enhanced authentication, so no
+                // authentication method can ever have been negotiated in the
+                // CONNACK. [MQTT-4.12.0] Receiving an AUTH packet in that state
+                // is a Protocol Error -> DISCONNECT 0x82 and close.
+                return Err(Reason::ProtocolError(ByteString::from_static(
+                    "received an AUTH packet but enhanced authentication is not supported",
+                )));
             }
             _ => {
                 return Err(format!("Received an unimplemented message, {pkt:?}").into());

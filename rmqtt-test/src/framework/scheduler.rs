@@ -8,7 +8,7 @@ use tracing::{error, info, warn};
 
 use super::context::TestContext;
 use super::suite::TestSuite;
-use super::testcase::{TestCase, TestResult, TestVerdict};
+use super::testcase::{Expectation, TestCase, TestResult, TestVerdict};
 
 /// Schedule and execute test suites
 pub struct TestScheduler {
@@ -76,7 +76,7 @@ impl TestScheduler {
         for idx in order {
             let test = &suite.tests[idx];
             let result = self.execute_test_with_retry(test, ctx, &suite.name);
-            let passed = result.verdict.is_passed();
+            let passed = result.verdict.counts_as_success();
             self.results.push(result);
 
             if !passed && is_critical_failure(&self.results) {
@@ -94,7 +94,8 @@ impl TestScheduler {
         }
     }
 
-    /// Execute a test with retry
+    /// Execute a test with retry, then map the raw outcome through the
+    /// test's declared [`Expectation`] (expected-fail / record-type).
     fn execute_test_with_retry(
         &self,
         test: &Arc<dyn TestCase>,
@@ -108,7 +109,7 @@ impl TestScheduler {
         let mut result = Self::execute_once(test.as_ref(), ctx, suite_name, start, timeout);
 
         for retry in 0..max_retries {
-            if result.verdict.is_passed() {
+            if result.verdict.counts_as_success() {
                 break;
             }
             info!("Retrying test '{}' (attempt {}/{})", test.name(), retry + 1, max_retries);
@@ -117,7 +118,7 @@ impl TestScheduler {
             result.retries = retry + 1;
         }
 
-        result
+        apply_expectation(result, test.expectation())
     }
 
     /// Execute a test once with timeout
@@ -152,6 +153,8 @@ impl TestScheduler {
         let mut skipped = 0;
         let mut errors = 0;
         let mut timeouts = 0;
+        let mut expected_fail = 0;
+        let mut info = 0;
         let mut total_duration = Duration::ZERO;
 
         for r in &self.results {
@@ -162,10 +165,22 @@ impl TestScheduler {
                 TestVerdict::Skipped(_) => skipped += 1,
                 TestVerdict::Error(_) => errors += 1,
                 TestVerdict::Timeout => timeouts += 1,
+                TestVerdict::ExpectedFail(_) => expected_fail += 1,
+                TestVerdict::Info(_) => info += 1,
             }
         }
 
-        TestSummary { total: self.results.len(), passed, failed, skipped, errors, timeouts, total_duration }
+        TestSummary {
+            total: self.results.len(),
+            passed,
+            failed,
+            skipped,
+            errors,
+            timeouts,
+            expected_fail,
+            info,
+            total_duration,
+        }
     }
 }
 
@@ -178,7 +193,59 @@ pub struct TestSummary {
     pub skipped: usize,
     pub errors: usize,
     pub timeouts: usize,
+    /// Broker violations recorded as expected failures (issue-backed)
+    pub expected_fail: usize,
+    /// Record-type observations (MAY-level spec behaviors)
+    pub info: usize,
     pub total_duration: Duration,
+}
+
+/// Map a raw test outcome through the test's declared [`Expectation`].
+fn apply_expectation(mut result: TestResult, expectation: Expectation) -> TestResult {
+    match expectation {
+        Expectation::Normal => result,
+        Expectation::ExpectedFail => match &result.verdict {
+            TestVerdict::Failed(_) | TestVerdict::Error(_) | TestVerdict::Timeout => {
+                let reason = verdict_observation(&result.verdict);
+                warn!("EXPECTED-FAIL: '{}' - broker violates the spec as expected: {}", result.name, reason);
+                result.verdict = TestVerdict::ExpectedFail(reason);
+                result
+            }
+            TestVerdict::Passed => {
+                result.note = Some(
+                    "UNEXPECTED-PASS: broker is now compliant; promote this test to a \
+                     normal assertion and close the linked issue"
+                        .to_string(),
+                );
+                result
+            }
+            _ => result,
+        },
+        Expectation::Info => match &result.verdict {
+            TestVerdict::Passed => {
+                let observation = result.note.clone().unwrap_or_else(|| "no observation".to_string());
+                result.verdict = TestVerdict::Info(observation);
+                result.note = None;
+                result
+            }
+            TestVerdict::Failed(_) | TestVerdict::Error(_) | TestVerdict::Timeout => {
+                let observation = verdict_observation(&result.verdict);
+                result.verdict = TestVerdict::Info(observation);
+                result
+            }
+            _ => result,
+        },
+    }
+}
+
+/// Extract a human-readable observation from a verdict.
+fn verdict_observation(verdict: &TestVerdict) -> String {
+    match verdict {
+        TestVerdict::Failed(r) | TestVerdict::Error(r) | TestVerdict::Skipped(r) => r.clone(),
+        TestVerdict::Timeout => "test timed out".to_string(),
+        TestVerdict::ExpectedFail(r) | TestVerdict::Info(r) => r.clone(),
+        TestVerdict::Passed => "passed".to_string(),
+    }
 }
 
 /// Resolve DAG dependencies to produce execution order (topological sort)

@@ -686,6 +686,36 @@ fn build_functional_v5_suite() -> TestSuite {
     suite.add(ProtocolErrorV5PublishEmptyTopicTest);
     suite.add(ProtocolErrorV5BadRemainingLengthTest);
     suite.add(ProtocolErrorV5ReservedPacketTypeTest);
+    // --- P0 gap-analysis additions (designs/mqtt-5.0-standalone-test-gap-analysis.md) ---
+    // G1/G2: SUBSCRIBE / UNSUBSCRIBE empty payload [MQTT-3.8.3-3 / MQTT-3.10.3-2]
+    suite.add(ProtocolErrorV5SubscribeEmptyPayloadTest);
+    suite.add(ProtocolErrorV5UnsubscribeEmptyPayloadTest);
+    // G3: subscription options — Retain Handling 3 / reserved bits
+    suite.add(ProtocolErrorV5RetainHandling3Test);
+    suite.add(ProtocolErrorV5SubOptionsReservedBitsTest);
+    // G4: Subscription Identifier = 0 / on UNSUBSCRIBE
+    suite.add(ProtocolErrorV5SubIdZeroTest);
+    suite.add(ProtocolErrorV5UnsubscribeWithSubIdTest);
+    // G6: DUP=1 with QoS=0 [MQTT-3.3.1-2]
+    suite.add(ProtocolErrorV5PublishDupOnQos0Test);
+    // G9: DISCONNECT with non-zero reserved fixed-header flags
+    suite.add(ProtocolErrorV5DisconnectBadFlagsTest);
+    // G10: SUBSCRIBE / UNSUBSCRIBE packet id 0 [MQTT-2.2.1-2]
+    suite.add(ProtocolErrorV5SubscribePacketIdZeroTest);
+    suite.add(ProtocolErrorV5UnsubscribePacketIdZeroTest);
+    // G11: invalid UTF-8 topic / user property
+    suite.add(ProtocolErrorV5InvalidUtf8TopicTest);
+    suite.add(ProtocolErrorV5UserPropertyBadUtf8Test);
+    // G12: unsolicited AUTH packet
+    suite.add(ProtocolErrorV5UnsolicitedAuthTest);
+    // G5: CONNECT Will Flag = 0 with Will QoS / Will Retain set
+    suite.add(ConnectV5WillFlagZeroButQosSetTest);
+    suite.add(ConnectV5WillFlagZeroButRetainSetTest);
+    // G7: Topic Alias 0 / exceeding advertised maximum
+    suite.add(TopicAliasV5ZeroTest);
+    suite.add(TopicAliasV5OverMaxTest);
+    // G8: client exceeding the broker's Receive Maximum → 0x93
+    suite.add(FlowControlV5ReceiveMaxViolationTest);
     // Retained message edge cases
     suite.add(RetainV5StoreAndDeliverTest);
     suite.add(RetainV5EmptyDeleteTest);
