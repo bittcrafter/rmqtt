@@ -155,12 +155,19 @@ fn read_full_packet_fc(stream: &mut TcpStream) -> anyhow::Result<ReadOutcome> {
     fn is_timeout(e: &std::io::Error) -> bool {
         matches!(e.kind(), std::io::ErrorKind::WouldBlock | std::io::ErrorKind::TimedOut)
     }
+    // WSAECONNABORTED / WSAECONNRESET: the peer closed the connection while
+    // unread data remained in our receive buffer (e.g. after a burst without
+    // reading PUBACKs) — treat it as "connection closed".
+    fn is_aborted(e: &std::io::Error) -> bool {
+        matches!(e.kind(), std::io::ErrorKind::ConnectionAborted | std::io::ErrorKind::ConnectionReset)
+    }
 
     let mut buf = Vec::new();
     let mut b = [0u8; 1];
     match stream.read(&mut b) {
         Ok(0) => return Ok(ReadOutcome::Eof),
         Err(e) if is_timeout(&e) => return Ok(ReadOutcome::Timeout),
+        Err(e) if is_aborted(&e) => return Ok(ReadOutcome::Eof),
         Err(e) => return Err(e.into()),
         Ok(_) => {}
     }
@@ -172,6 +179,7 @@ fn read_full_packet_fc(stream: &mut TcpStream) -> anyhow::Result<ReadOutcome> {
         match stream.read(&mut b) {
             Ok(0) => return Ok(ReadOutcome::Eof),
             Err(e) if is_timeout(&e) => return Ok(ReadOutcome::Timeout),
+            Err(e) if is_aborted(&e) => return Ok(ReadOutcome::Eof),
             Err(e) => return Err(e.into()),
             Ok(_) => {}
         }
@@ -190,6 +198,7 @@ fn read_full_packet_fc(stream: &mut TcpStream) -> anyhow::Result<ReadOutcome> {
     match stream.read_exact(&mut rest) {
         Ok(()) => {}
         Err(e) if is_timeout(&e) => return Ok(ReadOutcome::Timeout),
+        Err(e) if is_aborted(&e) => return Ok(ReadOutcome::Eof),
         Err(e) => return Err(e.into()),
     }
     buf.extend_from_slice(&rest);
@@ -308,9 +317,16 @@ impl TestCase for FlowControlV5ReceiveMaxViolationTest {
                     }
                 }
                 pkt.extend_from_slice(&body);
-                stream.write_all(&pkt)?;
+                // A write may fail (WSAECONNABORTED / EPIPE / ECONNRESET) once
+                // the broker has detected the violation and aborted the
+                // connection mid-burst — that is itself evidence of rejection,
+                // so stop writing and fall through to the read phase to
+                // collect the DISCONNECT/EOF evidence.
+                if stream.write_all(&pkt).is_err() {
+                    break;
+                }
             }
-            stream.flush()?;
+            let _ = stream.flush();
 
             // Read responses until DISCONNECT / EOF / deadline.
             let deadline = Instant::now() + Duration::from_secs(5);
