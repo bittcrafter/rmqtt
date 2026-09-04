@@ -10,12 +10,43 @@ pub enum TestVerdict {
     Skipped(String),
     Error(String),
     Timeout,
+    /// The broker violated the spec as expected by this test case. Recorded
+    /// as evidence (see the linked GitHub issue) and NOT counted as a suite
+    /// failure. When the broker becomes compliant, the test surfaces as an
+    /// unexpected pass and should be promoted to a normal assertion.
+    ExpectedFail(String),
+    /// Record-type verdict for MAY-level spec behaviors: the test observed
+    /// and reported the broker's actual behavior without asserting a
+    /// pass/fail outcome. Never counts as a failure.
+    Info(String),
 }
 
 impl TestVerdict {
     pub fn is_passed(&self) -> bool {
         matches!(self, TestVerdict::Passed)
     }
+
+    /// Verdicts that count as "no failure" for scheduling purposes:
+    /// retrying is stopped and the suite is not halted.
+    pub fn counts_as_success(&self) -> bool {
+        matches!(self, TestVerdict::Passed | TestVerdict::ExpectedFail(_) | TestVerdict::Info(_))
+    }
+}
+
+/// Declared expectation of a test case, applied by the scheduler after
+/// execution to map the raw outcome onto the reported verdict.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Expectation {
+    /// Ordinary assertive test (default).
+    #[default]
+    Normal,
+    /// The broker is known to violate the spec here (a GitHub issue must be
+    /// registered). A failure is recorded as `ExpectedFail`; a pass is
+    /// annotated `UNEXPECTED-PASS` so the test can be promoted.
+    ExpectedFail,
+    /// Record-type test for MAY-level spec behavior: outcomes are reported
+    /// as `Info` observations, never as failures.
+    Info,
 }
 
 /// Test result with timing and metadata
@@ -134,6 +165,12 @@ pub trait TestCase: Send + Sync {
     /// Test dependencies (names of tests that must complete first)
     fn depends_on(&self) -> Vec<String> {
         Vec::new()
+    }
+
+    /// Declared expectation of this test case (default: normal assertion).
+    /// See [`Expectation`] for the expected-fail / record-type mechanisms.
+    fn expectation(&self) -> Expectation {
+        Expectation::Normal
     }
 }
 

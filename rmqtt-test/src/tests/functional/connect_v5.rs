@@ -495,3 +495,80 @@ impl TestCase for ConnectV5AuthMethodRejectedTest {
         Duration::from_secs(10)
     }
 }
+
+// ---------------------------------------------------------------------------
+// P0 gap-analysis additions (designs/mqtt-5.0-standalone-test-gap-analysis.md)
+// ---------------------------------------------------------------------------
+
+/// Expect a CONNECT to be rejected: either the connection is closed without a
+/// successful CONNACK, or a CONNACK with a non-zero reason code is returned.
+fn expect_connect_rejected(ctx: &TestContext, packet: &[u8]) -> anyhow::Result<()> {
+    match raw_connect_v5_exchange(&ctx.config.broker_addr, packet) {
+        Ok(None) => Ok(()),
+        Ok(Some((_, code))) if code != 0 => Ok(()),
+        Ok(Some((_, code))) => {
+            Err(anyhow::anyhow!("broker accepted the illegal CONNECT (CONNACK reason 0x{code:02X})"))
+        }
+        Err(e) => Err(e),
+    }
+}
+
+/// Negative: CONNECT with Will Flag = 0 but Will QoS = 1 is a Malformed
+/// Packet. [MQTT-3.1.2-11 / MQTT-3.1.2-13]
+///
+/// Known broker defect (registered as a GitHub issue): expected-fail.
+pub struct ConnectV5WillFlagZeroButQosSetTest;
+
+impl TestCase for ConnectV5WillFlagZeroButQosSetTest {
+    fn name(&self) -> &str {
+        "connect_v5_will_flag_zero_but_qos_set"
+    }
+
+    fn execute(&self, ctx: &mut TestContext) -> TestResult {
+        let start = Instant::now();
+        // flags = 0x0A: clean start (0x02) + Will QoS = 1 (0x08), Will Flag = 0
+        let packet = raw_connect_v5_bytes(b"MQTT", 5, 0x0A, 60, b"willflag-qos", None);
+        match expect_connect_rejected(ctx, &packet) {
+            Ok(()) => TestResult::passed(self.name(), "functional_v5", start.elapsed()),
+            Err(e) => TestResult::failed(self.name(), "functional_v5", start.elapsed(), e.to_string()),
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(10)
+    }
+
+    fn expectation(&self) -> crate::framework::testcase::Expectation {
+        crate::framework::testcase::Expectation::ExpectedFail
+    }
+}
+
+/// Negative: CONNECT with Will Flag = 0 but Will Retain = 1 is a Malformed
+/// Packet. [MQTT-3.1.2-11 / MQTT-3.1.2-12]
+///
+/// Known broker defect (registered as a GitHub issue): expected-fail.
+pub struct ConnectV5WillFlagZeroButRetainSetTest;
+
+impl TestCase for ConnectV5WillFlagZeroButRetainSetTest {
+    fn name(&self) -> &str {
+        "connect_v5_will_flag_zero_but_retain_set"
+    }
+
+    fn execute(&self, ctx: &mut TestContext) -> TestResult {
+        let start = Instant::now();
+        // flags = 0x22: clean start (0x02) + Will Retain (0x20), Will Flag = 0
+        let packet = raw_connect_v5_bytes(b"MQTT", 5, 0x22, 60, b"willflag-retain", None);
+        match expect_connect_rejected(ctx, &packet) {
+            Ok(()) => TestResult::passed(self.name(), "functional_v5", start.elapsed()),
+            Err(e) => TestResult::failed(self.name(), "functional_v5", start.elapsed(), e.to_string()),
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(10)
+    }
+
+    fn expectation(&self) -> crate::framework::testcase::Expectation {
+        crate::framework::testcase::Expectation::ExpectedFail
+    }
+}
