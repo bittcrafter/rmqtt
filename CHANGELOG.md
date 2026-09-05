@@ -2,6 +2,12 @@
 
 All notable changes to RMQTT are documented in this file.
 
+## [Unreleased]
+
+### Security
+
+- **Constant-Time Bearer Token Comparison** (CWE-208 hardening): `rmqtt-http-api` now verifies the `Authorization: Bearer` header against `http_bearer_token` by comparing fixed-length SHA-256 digests with `subtle::ConstantTimeEq`, instead of a plain `==` on the raw values. This removes both timing side channels reported in a private disclosure — the byte-by-byte early-exit of the equality check and the length short-circuit — so neither the token content nor its length can be inferred from response timing. Behavior is unchanged otherwise (same exact `Bearer ` prefix semantics, same 401 handling, hoop only mounted when a token is configured). Unit tests added for correct/wrong/missing/empty/prefix/truncated/superset/no-scheme header values and SHA-256 known vectors. New dependencies: `sha2 0.10`, `subtle 2.6` (both already present in the dependency tree). Design notes: `designs/security-http-api-bearer-ct-compare.md`. Per-client-IP rate limiting on the HTTP API is tracked separately as defense-in-depth follow-up.
+
 ## [0.23.0] - 2026-08-09
 
 ### New Features
