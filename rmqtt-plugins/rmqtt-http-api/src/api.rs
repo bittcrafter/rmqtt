@@ -17,6 +17,8 @@ use salvo::prelude::*;
 use anyhow::anyhow;
 use base64::prelude::{Engine, BASE64_STANDARD};
 use serde_json::{self, json};
+use sha2::{Digest, Sha256};
+use subtle::ConstantTimeEq;
 use tokio::sync::oneshot;
 
 use rmqtt::{
@@ -55,19 +57,48 @@ use super::{clients, plugin, prome, subs, PluginConfigType};
 /// Depot key for the history caches + storage handle.
 const HISTORY_CACHES: &str = "HISTORY_CACHES";
 
+/// SHA-256 digest length in bytes.
+const SHA256_DIGEST_LEN: usize = 32;
+
+/// Compute the SHA-256 digest over the given byte slices, concatenated.
+fn sha256_digest(parts: &[&[u8]]) -> [u8; SHA256_DIGEST_LEN] {
+    let mut hasher = Sha256::new();
+    for part in parts {
+        hasher.update(part);
+    }
+    hasher.finalize().into()
+}
+
+/// Constant-time bearer token verification.
+///
+/// Both the expected and the provided value are digested to fixed 32-byte
+/// SHA-256 values before comparison, so neither the token content nor its
+/// length can be inferred from response timing (CWE-208 hardening).
+fn verify_bearer(expected: &[u8; SHA256_DIGEST_LEN], provided: Option<&HeaderValue>) -> bool {
+    provided
+        .map(|value| {
+            let provided_digest = sha256_digest(&[value.as_bytes()]);
+            bool::from(provided_digest.ct_eq(expected))
+        })
+        .unwrap_or(false)
+}
+
 struct BearerValidator {
-    token: String,
+    // Fixed-length SHA-256 digest of the expected "Bearer {token}" value.
+    // Comparing digests instead of raw bytes makes the check constant-time
+    // with respect to both token content and token length.
+    expected_digest: [u8; SHA256_DIGEST_LEN],
 }
 impl BearerValidator {
     pub fn new(token: &str) -> Self {
-        Self { token: format!("Bearer {token}") }
+        Self { expected_digest: sha256_digest(&[b"Bearer ", token.as_bytes()]) }
     }
 }
 
 #[async_trait]
 impl Handler for BearerValidator {
     async fn handle(&self, req: &mut Request, depot: &mut Depot, res: &mut Response, ctrl: &mut FlowCtrl) {
-        if req.headers().get("authorization").is_some_and(|token| token == &self.token) {
+        if verify_bearer(&self.expected_digest, req.headers().get("authorization")) {
             ctrl.call_next(req, depot, res).await;
         } else {
             res.status_code(StatusCode::UNAUTHORIZED);
@@ -3391,4 +3422,101 @@ fn aggregate_history_data(nodes_data: &HashMap<NodeId, HistoryData>) -> (Vec<ser
 
     let data: Vec<serde_json::Value> = result.into_iter().map(|(_, v)| v).collect();
     (data, node_count)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Build the expected digest the same way `BearerValidator::new` does.
+    fn expected_digest_for(token: &str) -> [u8; SHA256_DIGEST_LEN] {
+        sha256_digest(&[b"Bearer ", token.as_bytes()])
+    }
+
+    fn header(value: &str) -> Option<HeaderValue> {
+        Some(HeaderValue::from_str(value).expect("valid header value"))
+    }
+
+    #[test]
+    fn sha256_known_vector() {
+        // SHA-256 of the empty string.
+        assert_eq!(
+            sha256_digest(&[]),
+            [
+                0xe3, 0xb0, 0xc4, 0x42, 0x98, 0xfc, 0x1c, 0x14, 0x9a, 0xfb, 0xf4, 0xc8, 0x99, 0x6f, 0xb9,
+                0x24, 0x27, 0xae, 0x41, 0xe4, 0x64, 0x9b, 0x93, 0x4c, 0xa4, 0x95, 0x99, 0x1b, 0x78, 0x52,
+                0xb8, 0x55,
+            ]
+        );
+        // SHA-256 of "abc".
+        assert_eq!(
+            sha256_digest(&[b"ab", b"c"]),
+            [
+                0xba, 0x78, 0x16, 0xbf, 0x8f, 0x01, 0xcf, 0xea, 0x41, 0x41, 0x40, 0xde, 0x5d, 0xae, 0x22,
+                0x23, 0xb0, 0x03, 0x61, 0xa3, 0x96, 0x17, 0x7a, 0x9c, 0xb4, 0x10, 0xff, 0x61, 0xf2, 0x00,
+                0x15, 0xad,
+            ]
+        );
+    }
+
+    #[test]
+    fn correct_token_passes() {
+        let expected = expected_digest_for("s3cret-token");
+        assert!(verify_bearer(&expected, header("Bearer s3cret-token").as_ref()));
+    }
+
+    #[test]
+    fn wrong_token_fails() {
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("Bearer wrong-token").as_ref()));
+    }
+
+    #[test]
+    fn missing_header_fails() {
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, None));
+    }
+
+    #[test]
+    fn empty_header_fails() {
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("").as_ref()));
+    }
+
+    #[test]
+    fn prefix_token_fails() {
+        // First k bytes match the expected value, remainder differs.
+        // (Previously an early-exit path in the plain `==` comparison.)
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("Bearer s3cret-tokXX").as_ref()));
+    }
+
+    #[test]
+    fn truncated_token_fails() {
+        // Provided value is a prefix of the expected value.
+        // (Previously a length short-circuit that leaked the token length.)
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("Bearer s3cret").as_ref()));
+    }
+
+    #[test]
+    fn longer_token_fails() {
+        // Provided value extends the expected value.
+        let expected = expected_digest_for("s3cret");
+        assert!(!verify_bearer(&expected, header("Bearer s3cret-token").as_ref()));
+    }
+
+    #[test]
+    fn no_scheme_fails() {
+        // Raw token without the "Bearer " prefix must not authenticate.
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("s3cret-token").as_ref()));
+    }
+
+    #[test]
+    fn case_sensitive_prefix_fails() {
+        // Scheme case differs; kept byte-exact to preserve previous behavior.
+        let expected = expected_digest_for("s3cret-token");
+        assert!(!verify_bearer(&expected, header("bearer s3cret-token").as_ref()));
+    }
 }
