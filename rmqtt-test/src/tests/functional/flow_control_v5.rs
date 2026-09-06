@@ -372,3 +372,121 @@ impl TestCase for FlowControlV5ReceiveMaxViolationTest {
         Duration::from_secs(20)
     }
 }
+
+// ---------------------------------------------------------------------------
+// P2 gap-analysis additions (designs/mqtt-5.0-standalone-test-gap-analysis.md)
+// ---------------------------------------------------------------------------
+
+/// G27: broker -> client direction flow control. The client announces
+/// Receive Maximum = 1 and does NOT acknowledge the first delivery; the
+/// broker must not push a second unacknowledged QoS 1 delivery beyond the
+/// quota (MQTT-4.9.0-1/2). Only after a manual PUBACK may the next message
+/// arrive.
+pub struct FlowControlV5InflightCapStrictTest;
+
+impl TestCase for FlowControlV5InflightCapStrictTest {
+    fn name(&self) -> &str {
+        "flow_control_v5_inflight_cap_strict"
+    }
+
+    fn execute(&self, ctx: &mut TestContext) -> TestResult {
+        let start = Instant::now();
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        let result: anyhow::Result<()> = rt.block_on(async {
+            let mut subscriber = crate::mqtt::v5::MqttV5Client::connect_with_options(
+                &ctx.config.broker_addr,
+                "fc-strict-sub",
+                ctx.config.connect_timeout,
+                true,
+                60,
+                None,
+                None,
+                None,
+                None,
+                NonZeroU16::new(1),
+                None,
+            )
+            .await?;
+            let publisher = crate::mqtt::v5::MqttV5Client::connect(
+                &ctx.config.broker_addr,
+                "fc-strict-pub",
+                ctx.config.connect_timeout,
+            )
+            .await?;
+
+            subscriber.subscribe("test/v5/fc/strict", QoS::AtLeastOnce).await?;
+            tokio::time::sleep(Duration::from_millis(200)).await;
+
+            // Stall acknowledgements: broker may keep at most 1 unacked QoS 1
+            // delivery in flight against this client.
+            subscriber.set_auto_puback(false);
+
+            for i in 0..3 {
+                publisher
+                    .publish("test/v5/fc/strict", format!("fc{i}").as_bytes(), QoS::AtLeastOnce, false)
+                    .await?;
+            }
+
+            // First delivery must arrive.
+            let m1 = subscriber
+                .recv_message_timeout(Duration::from_secs(3))
+                .await
+                .ok_or_else(|| anyhow::anyhow!("no delivery within timeout (broker stalled entirely)"))?;
+            let pid1 = m1.packet_id.ok_or_else(|| anyhow::anyhow!("QoS 1 delivery without packet id"))?;
+
+            // While unacknowledged, no further delivery may be pushed
+            // (in-flight quota = 1). Allow a short grace window for the
+            // broker to make its decision.
+            let extra = subscriber.recv_message_timeout(Duration::from_millis(700)).await;
+            if let Some(msg) = extra {
+                return Err(anyhow::anyhow!(
+                    "broker pushed a second delivery while the first was unacknowledged \
+                     (Receive Maximum=1 violated, MQTT-4.9.0-1): topic={:?} pid={:?}",
+                    msg.topic,
+                    msg.packet_id
+                ));
+            }
+
+            // Acknowledge the first delivery: the next one must now arrive.
+            subscriber.send_puback(pid1).await?;
+            let m2 = subscriber
+                .recv_message_timeout(Duration::from_secs(3))
+                .await
+                .ok_or_else(|| anyhow::anyhow!("no second delivery after PUBACK"))?;
+            let pid2 =
+                m2.packet_id.ok_or_else(|| anyhow::anyhow!("second QoS 1 delivery without packet id"))?;
+            if pid2 == pid1 {
+                return Err(anyhow::anyhow!(
+                    "broker redelivered the same packet id instead of the next message"
+                ));
+            }
+
+            subscriber.send_puback(pid2).await?;
+            let m3 = subscriber
+                .recv_message_timeout(Duration::from_secs(3))
+                .await
+                .ok_or_else(|| anyhow::anyhow!("no third delivery after second PUBACK"))?;
+            let pid3 =
+                m3.packet_id.ok_or_else(|| anyhow::anyhow!("third QoS 1 delivery without packet id"))?;
+            if pid3 == pid2 || pid3 == pid1 {
+                return Err(anyhow::anyhow!("unexpected packet id reuse: {pid3}"));
+            }
+            subscriber.send_puback(pid3).await?;
+
+            subscriber.set_auto_puback(true);
+            publisher.disconnect().await?;
+            subscriber.disconnect().await?;
+            Ok(())
+        });
+
+        match result {
+            Ok(()) => TestResult::passed(self.name(), "functional_v5", start.elapsed()),
+            Err(e) => TestResult::failed(self.name(), "functional_v5", start.elapsed(), e.to_string()),
+        }
+    }
+
+    fn timeout(&self) -> Duration {
+        Duration::from_secs(30)
+    }
+}
