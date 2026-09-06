@@ -1145,6 +1145,13 @@ impl SessionState {
 
         let mut acks = Vec::new();
         for (topic_filter, qos) in topic_filters {
+            // Deliberate: parse errors here abort the whole SUBSCRIBE and drop the
+            // connection (via the caller's Err branch) instead of answering with a
+            // per-filter SUBACK Failure (0x80). Legacy v3.1.1 devices often ignore a
+            // refused SUBACK and hang forever; they only recover after reconnecting,
+            // so disconnecting forces them to re-subscribe. Do NOT align this with
+            // the v5 path (which reports per-filter TopicFilterInvalid) without
+            // considering those clients.
             let s = Subscribe::from_v3(&topic_filter, qos, shared_subscription, limit_subscription)?;
             match self.subscribe(s).await {
                 Ok(sub_ret) => {
@@ -1192,7 +1199,19 @@ impl SessionState {
         let mut status: Vec<SubscribeAckReason> = Vec::new();
 
         for (topic_filter, opts) in &subs.topic_filters {
-            let s = Subscribe::from_v5(topic_filter, opts, shared_subscription, limit_subscription, sub_id)?;
+            // Parse errors (e.g. malformed shared subscription filters) are per-filter
+            // failures and must be reported in the SUBACK (MQTT 5.0 section 3.8.4)
+            // instead of aborting the whole subscribe and dropping the connection.
+            let s =
+                match Subscribe::from_v5(topic_filter, opts, shared_subscription, limit_subscription, sub_id)
+                {
+                    Ok(s) => s,
+                    Err(e) => {
+                        log::warn!("{:?} Subscribe filter refused, {:?}, {:?}", self.id, topic_filter, e);
+                        status.push(SubscribeAckReason::TopicFilterInvalid);
+                        continue;
+                    }
+                };
             match self.subscribe(s).await {
                 Ok(sub_ret) => {
                     status.push(sub_ret.into_inner());
