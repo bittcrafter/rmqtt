@@ -595,9 +595,13 @@ fn build_functional_v5_suite() -> TestSuite {
     use tests::functional::payload_format_v5::*;
     use tests::functional::protocol_error_v5::*;
     use tests::functional::publication_expiry_v5::*;
+    use tests::functional::publish_properties_passthrough_v5::*;
     use tests::functional::pubsub_v5::*;
     use tests::functional::qos2_conformance::*;
     use tests::functional::qos2_pubrel_resume_collision::*;
+    use tests::functional::qos_downgrade_v5::*;
+    use tests::functional::reason_code_v5::*;
+    use tests::functional::request_problem_info_v5::*;
     use tests::functional::request_response_v5::*;
     use tests::functional::retain_handling_v5::*;
     use tests::functional::retain_unavailable_v5::*;
@@ -606,11 +610,13 @@ fn build_functional_v5_suite() -> TestSuite {
     use tests::functional::session_v5::*;
     use tests::functional::shared_subscription::*;
     use tests::functional::subscribe_identifiers_v5::*;
+    use tests::functional::subscribe_multi_filter_v5::*;
     use tests::functional::tcp_keepalive::*;
     use tests::functional::topic_alias_v5::*;
     use tests::functional::user_properties_v5::*;
     use tests::functional::wildcard::*;
     use tests::functional::will_delay_v5::*;
+    use tests::functional::will_properties_v5::*;
 
     let mut suite = TestSuite::new("functional_v5");
     suite.add(ConnectV5Test);
@@ -716,6 +722,38 @@ fn build_functional_v5_suite() -> TestSuite {
     suite.add(TopicAliasV5OverMaxTest);
     // G8: client exceeding the broker's Receive Maximum → 0x93
     suite.add(FlowControlV5ReceiveMaxViolationTest);
+    // --- P1 gap-analysis additions (designs/mqtt-5.0-standalone-test-gap-analysis.md) ---
+    // G13: QoS downgrade matrix
+    suite.add(QosDowngradeV5MatrixTest);
+    // G14/G15: PUBACK / UNSUBACK reason codes (legal-value assertion + record)
+    suite.add(ReasonCodeV5PubackNoMatchingTest);
+    suite.add(ReasonCodeV5UnsubackNoSubscriptionTest);
+    // G16: Will Message properties
+    suite.add(WillPropertiesV5DeliveryTest);
+    // G17: Message Expiry queue semantics
+    suite.add(MessageExpiryV5QueuedDropTest);
+    suite.add(MessageExpiryV5ForwardedTest);
+    // G18: QoS 1 delivery ordering
+    suite.add(PubSubV5Qos1OrderingTest);
+    // G19: session expiry update on reconnect
+    suite.add(SessionV5ExpiryUpdateOnReconnectTest);
+    // G20: malformed shared subscription filter
+    suite.add(SharedSubV5MalformedFilterTest);
+    // G21: Subscription Identifier update on re-subscribe
+    suite.add(SubscribeIdentifiersV5UpdateTest);
+    // G22: Response Topic wildcards (record-type, MAY-level)
+    suite.add(PublishV5ResponseTopicWildcardTest);
+    // --- P2 gap-analysis additions (designs/mqtt-5.0-standalone-test-gap-analysis.md) ---
+    // G23: Request Problem Information = 0 — no Reason String / User Property on acks
+    suite.add(RequestProblemInfoV5Test);
+    // G24: Request Response Information = 1 — CONNACK Response Information (record-type)
+    suite.add(ConnackResponseInfoV5Test);
+    // G25: multi-property passthrough (Content Type / Correlation Data / …)
+    suite.add(PublishPropertiesPassthroughV5Test);
+    // G26: single SUBSCRIBE with multiple filters at mixed QoS
+    suite.add(SubscribeMultiFilterMixedV5Test);
+    // G27: broker -> client flow control with Receive Maximum = 1
+    suite.add(FlowControlV5InflightCapStrictTest);
     // Retained message edge cases
     suite.add(RetainV5StoreAndDeliverTest);
     suite.add(RetainV5EmptyDeleteTest);
